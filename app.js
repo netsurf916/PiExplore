@@ -16,6 +16,12 @@ const widthDecrement = document.getElementById('widthDecrement');
 const widthIncrement = document.getElementById('widthIncrement');
 const controls = document.getElementById('controls');
 const prevButton = document.getElementById('prevButton');
+const prevHalfButton = document.getElementById('prevHalfButton');
+const prevTenRowsButton = document.getElementById('prevTenRowsButton');
+const prevRowButton = document.getElementById('prevRowButton');
+const nextRowButton = document.getElementById('nextRowButton');
+const nextTenRowsButton = document.getElementById('nextTenRowsButton');
+const nextHalfButton = document.getElementById('nextHalfButton');
 const nextButton = document.getElementById('nextButton');
 const statusEl = document.getElementById('status');
 const rangeEl = document.getElementById('range');
@@ -304,13 +310,32 @@ function nudgeWidth(delta) {
   render();
 }
 
-function movePage(direction) {
-  const pageSize = BigInt(Math.max(1, rowWidth * rows));
-  let start = parseNonNegativeBigInt(startInput.value);
-  start += BigInt(direction) * pageSize;
+function moveByDigits(delta) {
+  let start;
+  try {
+    start = parseNonNegativeBigInt(startInput.value);
+  } catch (err) {
+    statusEl.textContent = err.message;
+    return;
+  }
+
+  start += BigInt(delta);
   if (start < 0n) start = 0n;
   startInput.value = start.toString();
   render();
+}
+
+function moveRows(direction, rowCount) {
+  const count = Math.max(1, Math.floor(rowCount));
+  moveByDigits(BigInt(direction) * BigInt(rowWidth) * BigInt(count));
+}
+
+function moveHalfPage(direction) {
+  moveRows(direction, Math.max(1, Math.floor(rows / 2)));
+}
+
+function movePage(direction) {
+  moveRows(direction, rows);
 }
 
 function pointerCell(event) {
@@ -440,6 +465,12 @@ widthInput.addEventListener('keydown', event => {
 });
 
 prevButton.addEventListener('click', () => movePage(-1));
+prevHalfButton.addEventListener('click', () => moveHalfPage(-1));
+prevTenRowsButton.addEventListener('click', () => moveRows(-1, 10));
+prevRowButton.addEventListener('click', () => moveRows(-1, 1));
+nextRowButton.addEventListener('click', () => moveRows(1, 1));
+nextTenRowsButton.addEventListener('click', () => moveRows(1, 10));
+nextHalfButton.addEventListener('click', () => moveHalfPage(1));
 nextButton.addEventListener('click', () => movePage(1));
 
 resetPalette.addEventListener('click', () => {
