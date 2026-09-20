@@ -1,5 +1,8 @@
 const API = 'https://api.pi.delivery/v1/pi';
-const MAX_PER_REQUEST = 1000;
+const API_CHUNK_SIZE = 1000;
+const API_CACHE_NAME = 'pi-explore-api-v1';
+const SEED_MANIFEST_URL = 'data/manifest.json';
+
 const DEFAULT_PALETTE = [
   '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
   '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
@@ -27,12 +30,16 @@ const magnifierDigit = document.getElementById('magnifierDigit');
 
 let palette = [...DEFAULT_PALETTE];
 let digits = '';
-let startIndex = 0;
+let startIndex = 0n;
 let rowWidth = 100;
 let rows = 1;
 let cellWidth = 1;
 let cellHeight = 1;
 let renderToken = 0;
+
+let seedManifestPromise = null;
+const seedChunkMemory = new Map();
+const apiChunkMemory = new Map();
 
 function loadPalette() {
   try {
@@ -97,27 +104,159 @@ function resizeCanvas(cssWidth, cssHeight) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-async function fetchDigits(start, count, token) {
-  const parts = [];
-  let offset = 0;
+async function loadSeedManifest() {
+  if (!seedManifestPromise) {
+    seedManifestPromise = (async () => {
+      try {
+        const response = await fetch(SEED_MANIFEST_URL, { cache: 'force-cache' });
+        if (!response.ok) return null;
+        const manifest = await response.json();
+        if (!manifest || !Number.isInteger(manifest.totalDigits) ||
+            !Number.isInteger(manifest.chunkSize) || !Array.isArray(manifest.chunks)) {
+          return null;
+        }
+        return manifest;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return seedManifestPromise;
+}
 
-  while (offset < count) {
-    if (token !== renderToken) throw new DOMException('superseded', 'AbortError');
+async function loadSeedChunk(manifest, chunkIndex, token, stats) {
+  if (token !== renderToken) throw new DOMException('superseded', 'AbortError');
 
-    const chunk = Math.min(MAX_PER_REQUEST, count - offset);
-    const requestStart = start + BigInt(offset);
-    const url = `${API}?start=${requestStart}&numberOfDigits=${chunk}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`π service returned HTTP ${response.status}`);
-    const data = await response.json();
-    const content = String(data.content || '');
-    if (!content.length) break;
-    parts.push(content);
-    offset += content.length;
-    if (content.length < chunk) break;
+  const meta = manifest.chunks[chunkIndex];
+  if (!meta) throw new Error('Missing bundled π seed chunk metadata.');
+
+  if (seedChunkMemory.has(chunkIndex)) {
+    stats.seedMemoryHits++;
+    return seedChunkMemory.get(chunkIndex);
   }
 
-  return parts.join('');
+  const response = await fetch(`data/${meta.file}`, { cache: 'force-cache' });
+  if (!response.ok) throw new Error(`Bundled π data returned HTTP ${response.status}`);
+
+  const content = (await response.text()).trim();
+  if (content.length !== meta.count || !/^\d+$/.test(content)) {
+    throw new Error(`Bundled π data chunk ${meta.file} is invalid.`);
+  }
+
+  seedChunkMemory.set(chunkIndex, content);
+  stats.seedFiles++;
+  return content;
+}
+
+async function readApiResponse(response) {
+  if (!response.ok) throw new Error(`π service returned HTTP ${response.status}`);
+  const data = await response.json();
+  const content = String(data.content || '');
+  if (!content.length || !/^\d+$/.test(content)) {
+    throw new Error('π service returned invalid digit data.');
+  }
+  return content;
+}
+
+async function loadApiChunk(chunkStart, token, stats) {
+  if (token !== renderToken) throw new DOMException('superseded', 'AbortError');
+
+  const key = chunkStart.toString();
+  if (apiChunkMemory.has(key)) {
+    stats.apiMemoryHits++;
+    return apiChunkMemory.get(key);
+  }
+
+  const url = `${API}?start=${key}&numberOfDigits=${API_CHUNK_SIZE}`;
+
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open(API_CACHE_NAME);
+      const cached = await cache.match(url);
+      if (cached) {
+        const content = await readApiResponse(cached);
+        apiChunkMemory.set(key, content);
+        stats.apiPersistentHits++;
+        return content;
+      }
+
+      const response = await fetch(url);
+      const copy = response.clone();
+      const content = await readApiResponse(response);
+      await cache.put(url, copy);
+      apiChunkMemory.set(key, content);
+      stats.apiRequests++;
+      return content;
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      // Cache Storage can be unavailable or quota-limited. Fall through to a
+      // normal fetch rather than making cache support a hard requirement.
+    }
+  }
+
+  const response = await fetch(url);
+  const content = await readApiResponse(response);
+  apiChunkMemory.set(key, content);
+  stats.apiRequests++;
+  return content;
+}
+
+async function fetchDigits(start, count, token) {
+  const manifest = await loadSeedManifest();
+  const parts = [];
+  const stats = {
+    seedFiles: 0,
+    seedMemoryHits: 0,
+    apiRequests: 0,
+    apiPersistentHits: 0,
+    apiMemoryHits: 0
+  };
+
+  let position = start;
+  const end = start + BigInt(count);
+  const seedEnd = manifest ? BigInt(manifest.totalDigits) : 0n;
+  const seedChunkSize = manifest ? BigInt(manifest.chunkSize) : 0n;
+
+  while (position < end) {
+    if (token !== renderToken) throw new DOMException('superseded', 'AbortError');
+
+    if (manifest && position < seedEnd) {
+      const chunkIndex = Number(position / seedChunkSize);
+      const chunkStart = BigInt(chunkIndex) * seedChunkSize;
+      const content = await loadSeedChunk(manifest, chunkIndex, token, stats);
+      const offset = Number(position - chunkStart);
+      const remaining = Number(end - position);
+      const take = Math.min(content.length - offset, remaining);
+      if (take <= 0) throw new Error('Bundled π data could not satisfy the requested range.');
+      parts.push(content.slice(offset, offset + take));
+      position += BigInt(take);
+      continue;
+    }
+
+    const chunkStart = (position / BigInt(API_CHUNK_SIZE)) * BigInt(API_CHUNK_SIZE);
+    const content = await loadApiChunk(chunkStart, token, stats);
+    const offset = Number(position - chunkStart);
+    const remaining = Number(end - position);
+    const take = Math.min(content.length - offset, remaining);
+    if (take <= 0) break;
+    parts.push(content.slice(offset, offset + take));
+    position += BigInt(take);
+
+    if (content.length < API_CHUNK_SIZE && offset + take >= content.length) break;
+  }
+
+  return { content: parts.join(''), stats, seedDigits: manifest?.totalDigits ?? 0 };
+}
+
+function describeSources(stats, seedDigits) {
+  const parts = [];
+  if (seedDigits) parts.push(`seed: first ${seedDigits.toLocaleString()} digits`);
+  if (stats.seedFiles) parts.push(`${stats.seedFiles} seed file${stats.seedFiles === 1 ? '' : 's'} loaded`);
+  if (stats.seedMemoryHits) parts.push(`${stats.seedMemoryHits} seed memory hit${stats.seedMemoryHits === 1 ? '' : 's'}`);
+  if (stats.apiPersistentHits) parts.push(`${stats.apiPersistentHits} API cache hit${stats.apiPersistentHits === 1 ? '' : 's'}`);
+  if (stats.apiMemoryHits) parts.push(`${stats.apiMemoryHits} API memory hit${stats.apiMemoryHits === 1 ? '' : 's'}`);
+  if (stats.apiRequests) parts.push(`${stats.apiRequests} pi.delivery request${stats.apiRequests === 1 ? '' : 's'}`);
+  return parts.join(' · ');
 }
 
 function draw() {
@@ -163,14 +302,18 @@ async function render() {
 
   const token = ++renderToken;
   try {
-    digits = await fetchDigits(start, count, token);
+    const result = await fetchDigits(start, count, token);
     if (token !== renderToken) return;
 
+    digits = result.content;
     draw();
     emptyState.hidden = true;
 
     const end = digits.length ? start + BigInt(digits.length - 1) : start;
-    statusEl.textContent = `${rowWidth.toLocaleString()} digits/row × ${rows.toLocaleString()} rows · ${digits.length.toLocaleString()} digits`;
+    const sources = describeSources(result.stats, result.seedDigits);
+    statusEl.textContent =
+      `${rowWidth.toLocaleString()} digits/row × ${rows.toLocaleString()} rows · ` +
+      `${digits.length.toLocaleString()} digits${sources ? ' · ' + sources : ''}`;
     rangeEl.textContent = `indices ${start.toString()}–${end.toString()}`;
     syncUrl();
   } catch (err) {
