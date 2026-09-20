@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d12">
+  <title>Pi Explore</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">
+      <div class="pi-mark">π</div>
+      <div>
+        <h1>Pi Explore</h1>
+        <p>Turn the digits of π into color.</p>
+      </div>
+    </div>
+
+    <form id="controls" class="controls">
+      <label>
+        <span>Start index</span>
+        <input id="startInput" name="start" inputmode="numeric" value="0" autocomplete="off">
+      </label>
+      <label>
+        <span>Width</span>
+        <input id="widthInput" name="width" type="number" min="1" max="2000" step="1" value="100">
+      </label>
+      <button type="submit" class="primary">Render</button>
+      <button type="button" id="prevButton" title="Previous visible block">← Prev</button>
+      <button type="button" id="nextButton" title="Next visible block">Next →</button>
+    </form>
+
+    <div class="palette-wrap">
+      <span class="palette-label">Digit colors</span>
+      <div id="palette" class="palette" aria-label="Digit color palette"></div>
+      <button id="resetPalette" class="subtle" type="button">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="visualizer" class="visualizer" aria-label="Pi digit visualization">
+      <canvas id="piCanvas"></canvas>
+      <div id="emptyState" class="empty-state">Loading digits of π…</div>
+
+      <aside id="magnifier" class="magnifier" hidden>
+        <div class="magnifier-heading">
+          <strong id="magnifierIndex">index 0</strong>
+          <span id="magnifierDigit">digit 3</span>
+        </div>
+        <canvas id="magnifierCanvas" width="338" height="234"></canvas>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <div id="status">Ready.</div>
+    <div id="range"></div>
+    <a href="https://github.com/netsurf916/PiExplore" target="_blank" rel="noreferrer">GitHub</a>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
