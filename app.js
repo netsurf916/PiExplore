@@ -9,6 +9,8 @@ const canvas = document.getElementById('piCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 const visualizer = document.getElementById('visualizer');
 const startInput = document.getElementById('startInput');
+const startDecrement = document.getElementById('startDecrement');
+const startIncrement = document.getElementById('startIncrement');
 const widthInput = document.getElementById('widthInput');
 const controls = document.getElementById('controls');
 const prevButton = document.getElementById('prevButton');
@@ -278,6 +280,21 @@ function loadUrlState() {
   }
 }
 
+function nudgeStart(delta) {
+  let start;
+  try {
+    start = parseNonNegativeBigInt(startInput.value);
+  } catch (err) {
+    statusEl.textContent = err.message;
+    return;
+  }
+
+  start += BigInt(delta);
+  if (start < 0n) start = 0n;
+  startInput.value = start.toString();
+  render();
+}
+
 function movePage(direction) {
   const pageSize = BigInt(Math.max(1, rowWidth * rows));
   let start = parseNonNegativeBigInt(startInput.value);
@@ -389,6 +406,18 @@ controls.addEventListener('submit', event => {
   event.preventDefault();
   render();
 });
+startDecrement.addEventListener('click', () => nudgeStart(-1));
+startIncrement.addEventListener('click', () => nudgeStart(1));
+startInput.addEventListener('keydown', event => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    nudgeStart(-1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    nudgeStart(1);
+  }
+});
+
 prevButton.addEventListener('click', () => movePage(-1));
 nextButton.addEventListener('click', () => movePage(1));
 

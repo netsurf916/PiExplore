@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0d12">
   <title>Pi Explore</title>
-  <link rel="stylesheet" href="styles.css?v=local50m-r2">
+  <link rel="stylesheet" href="styles.css?v=local50m-r3">
 </head>
 <body>
   <header class="toolbar">
@@ -18,10 +18,14 @@
     </div>
 
     <form id="controls" class="controls">
-      <label>
-        <span>Start index</span>
-        <input id="startInput" name="start" inputmode="numeric" value="0" autocomplete="off">
-      </label>
+      <div class="control-field start-field">
+        <span class="control-label">Start index</span>
+        <div class="stepper">
+          <button type="button" id="startDecrement" class="stepper-button" aria-label="Decrease start index by 1" title="Start index −1">−</button>
+          <input id="startInput" name="start" inputmode="numeric" value="0" autocomplete="off" aria-label="Start index">
+          <button type="button" id="startIncrement" class="stepper-button" aria-label="Increase start index by 1" title="Start index +1">+</button>
+        </div>
+      </div>
       <label>
         <span>Width</span>
         <input id="widthInput" name="width" type="number" min="1" max="2000" step="1" value="100">
@@ -56,10 +60,10 @@
   <footer class="statusbar">
     <div id="status">Ready.</div>
     <div id="range"></div>
-    <div class="build" title="Deployed UI build">local50m-r2</div>
+    <div class="build" title="Deployed UI build">local50m-r3</div>
     <a href="https://github.com/netsurf916/PiExplore" target="_blank" rel="noreferrer">GitHub</a>
   </footer>
 
-  <script src="app.js?v=local50m-r2"></script>
+  <script src="app.js?v=local50m-r3"></script>
 </body>
 </html>

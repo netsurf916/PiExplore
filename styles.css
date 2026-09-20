@@ -91,13 +91,15 @@ h1 {
   align-items: end;
 }
 
-.controls label {
+.controls label,
+.control-field {
   display: grid;
   gap: .3rem;
   min-width: 9rem;
 }
 
 .controls label span,
+.control-label,
 .palette-label {
   color: var(--muted);
   font-size: .75rem;
@@ -112,6 +114,33 @@ input {
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
+}
+
+.stepper {
+  display: flex;
+  align-items: stretch;
+}
+
+.stepper input {
+  width: 9rem;
+  border-radius: 0;
+  text-align: right;
+}
+
+.stepper-button {
+  min-width: 2.35rem;
+  padding: .52rem .55rem;
+  font-weight: 700;
+}
+
+.stepper-button:first-child {
+  border-radius: 8px 0 0 8px;
+  border-right: 0;
+}
+
+.stepper-button:last-child {
+  border-radius: 0 8px 8px 0;
+  border-left: 0;
 }
 
 .palette-wrap {
@@ -250,8 +279,10 @@ main {
 }
 
 @media (max-width: 640px) {
-  .controls label { min-width: 7rem; }
+  .controls label,
+  .control-field { min-width: 7rem; }
   input { width: 8rem; }
+  .stepper input { width: 7rem; }
   .magnifier { width: min(360px, calc(100vw - 20px)); }
   .statusbar .build { display: none; }
 }
