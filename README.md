@@ -12,46 +12,53 @@ A static GitHub Pages explorer for visualizing the decimal digits of π as color
 - Previous/next navigation by one visible page of digits.
 - URL parameters preserve the current `start` and `width`.
 - Palette is saved in browser local storage.
+- All displayed π digits come from this repository; the browser does not call a third-party digit service.
 
-## Digit data and caching
+## Local 50-million-digit corpus
 
-PiExplore uses a layered data strategy to minimize requests to `pi.delivery`:
+The repository contains `pi-pari-50m.txt.gz`, a 50,000,000-digit corpus generated with PARI/GP. PiExplore indexes it with the leading `3` at index 0, so the locally available range is:
 
-1. **First 5,000,000 digits:** published as five 1,000,000-digit static files. These are served by GitHub Pages and can be cached by the browser/CDN.
-2. **Beyond 5,000,000:** fetched from the public [pi.delivery](https://pi.delivery/) API in its 1,000-digit chunks.
-3. **Persistent fallback cache:** API responses are stored in the browser Cache Storage API, so revisiting the same range does not need another `pi.delivery` request.
-4. **In-memory cache:** seed and API chunks already used during the current page session are reused without another read.
+```
+0 .. 49,999,999
+```
 
-## Verifying the bundled 5-million-digit corpus
+The repository also retains `pi-pari-5m.txt`. Those first 5,000,000 digits were independently regenerated with pinned `mpmath==1.3.0` and previously verified byte-for-byte against PARI/GP.
 
-The repository contains `pi-pari-5m.txt`, generated independently with PARI/GP. It contains exactly 5,000,000 ASCII digits using PiExplore's indexing convention, where index 0 is the leading `3`.
+The Pages build does **not calculate π** and does not download π data from anywhere. It only:
 
-On a cache miss, the GitHub Pages build:
+1. checks the gzip container integrity;
+2. decompresses the checked-in 50M corpus;
+3. verifies it contains exactly 50,000,000 ASCII decimal digits;
+4. compares its entire first 5,000,000 digits byte-for-byte against the independently verified 5M corpus;
+5. splits the 50M corpus into fifty 1,000,000-digit static files;
+6. records SHA-256 hashes for the complete uncompressed corpus, compressed source, and each static chunk in `data/manifest.json`;
+7. deploys those static files with the app.
 
-1. validates the PARI file format and exact byte count;
-2. independently computes 5,000,000 digits with pinned `mpmath==1.3.0` plus guard digits;
-3. compares the **entire 5,000,000-digit streams byte-for-byte**;
-4. fails the deployment and reports the first differing index if any digit disagrees;
-5. records a SHA-256 for the complete verified corpus and for every deployed 1,000,000-digit chunk in `data/manifest.json`;
-6. packages the verified PARI reference into the static seed files.
+This means ordinary exploration makes requests only to the GitHub Pages site itself. There is no `pi.delivery` fallback. Requests beyond index 49,999,999 are rejected locally.
 
-The verified generated seed is cached by GitHub Actions using a key derived from both `pi-pari-5m.txt` and the verification script, so ordinary site changes do not recompute five million digits. Any change to either the reference corpus or verifier invalidates the cache and forces a complete re-verification.
+## Caching
+
+The browser requests only the 1M-digit static chunks needed for the current view. Loaded chunks are retained in memory for the current session, and requests use normal browser/GitHub Pages HTTP caching across reloads.
 
 ## GitHub Pages
 
 Pages is deployed by `.github/workflows/pages.yml`. Repository Pages settings should use **GitHub Actions** as the publishing source.
 
-## Local verification/build
+## Local build
+
+No third-party Python package is required:
 
 ```sh
-python3 -m pip install mpmath==1.3.0
-rm -rf data
-python3 tools/generate_pi_seed.py \
-  --reference pi-pari-5m.txt \
-  --digits 5000000 \
+rm -rf _site
+mkdir -p _site/data
+python3 tools/package_pi_corpus.py \
+  --corpus pi-pari-50m.txt.gz \
+  --verified-prefix pi-pari-5m.txt \
+  --digits 50000000 \
   --chunk-size 1000000 \
-  --output-dir data
-python3 -m http.server 8000
+  --output-dir _site/data
+cp index.html app.js styles.css .nojekyll _site/
+python3 -m http.server 8000 --directory _site
 ```
 
 Then open `http://localhost:8000`.
