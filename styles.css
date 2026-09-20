@@ -179,12 +179,6 @@ input {
   border-radius: 0 8px 8px 0;
 }
 
-.nav-stepper .nav-page {
-  min-width: auto;
-  font-family: inherit;
-  font-weight: 500;
-}
-
 .palette-wrap {
   display: flex;
   gap: .6rem;
