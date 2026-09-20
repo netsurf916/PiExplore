@@ -12,6 +12,10 @@
 
 * { box-sizing: border-box; }
 
+/* Author CSS can override the browser's presentation rule for [hidden].
+   Keep hidden UI truly hidden even when the component has its own display. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -226,6 +230,13 @@ main {
   margin-left: auto;
 }
 
+.statusbar .build {
+  color: #6f7c91;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
 .statusbar a {
   color: #a9baff;
   text-decoration: none;
@@ -242,4 +253,5 @@ main {
   .controls label { min-width: 7rem; }
   input { width: 8rem; }
   .magnifier { width: min(360px, calc(100vw - 20px)); }
+  .statusbar .build { display: none; }
 }
