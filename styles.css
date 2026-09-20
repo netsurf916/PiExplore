@@ -127,6 +127,18 @@ input {
   text-align: right;
 }
 
+/* Width uses our explicit stepper controls, not the browser's native spinner. */
+.stepper input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.stepper input[type="number"]::-webkit-inner-spin-button,
+.stepper input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .stepper-button {
   min-width: 2.35rem;
   padding: .52rem .55rem;

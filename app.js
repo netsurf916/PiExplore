@@ -12,6 +12,8 @@ const startInput = document.getElementById('startInput');
 const startDecrement = document.getElementById('startDecrement');
 const startIncrement = document.getElementById('startIncrement');
 const widthInput = document.getElementById('widthInput');
+const widthDecrement = document.getElementById('widthDecrement');
+const widthIncrement = document.getElementById('widthIncrement');
 const controls = document.getElementById('controls');
 const prevButton = document.getElementById('prevButton');
 const nextButton = document.getElementById('nextButton');
@@ -295,6 +297,13 @@ function nudgeStart(delta) {
   render();
 }
 
+function nudgeWidth(delta) {
+  const current = Number(widthInput.value);
+  const width = Number.isFinite(current) ? Math.round(current) : 100;
+  widthInput.value = Math.max(1, Math.min(2000, width + delta));
+  render();
+}
+
 function movePage(direction) {
   const pageSize = BigInt(Math.max(1, rowWidth * rows));
   let start = parseNonNegativeBigInt(startInput.value);
@@ -415,6 +424,18 @@ startInput.addEventListener('keydown', event => {
   } else if (event.key === 'ArrowUp') {
     event.preventDefault();
     nudgeStart(1);
+  }
+});
+
+widthDecrement.addEventListener('click', () => nudgeWidth(-1));
+widthIncrement.addEventListener('click', () => nudgeWidth(1));
+widthInput.addEventListener('keydown', event => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    nudgeWidth(-1);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    nudgeWidth(1);
   }
 });
 
