@@ -10,6 +10,15 @@ const DEFAULT_PALETTE = [
   '#2575e4', '#498ce9', '#6ea3ed', '#92baf2', '#b6d1f6'
 ];
 
+const DISPLAY_MODES = {
+  palette: { label: 'Digit palette', digitsPerPixel: 1, usesChannel: false },
+  intensity1: { label: '1-digit intensity', digitsPerPixel: 1, usesChannel: true },
+  intensity2: { label: '2-digit intensity', digitsPerPixel: 2, usesChannel: true },
+  rgb3: { label: '3-digit RGB', digitsPerPixel: 3, usesChannel: false },
+  rgb6: { label: '6-digit RRGGBB', digitsPerPixel: 6, usesChannel: false },
+  difference: { label: 'Difference', digitsPerPixel: 1, usesChannel: true }
+};
+
 const canvas = document.getElementById('piCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 const visualizer = document.getElementById('visualizer');
@@ -19,6 +28,9 @@ const startIncrement = document.getElementById('startIncrement');
 const widthInput = document.getElementById('widthInput');
 const widthDecrement = document.getElementById('widthDecrement');
 const widthIncrement = document.getElementById('widthIncrement');
+const modeSelect = document.getElementById('modeSelect');
+const channelField = document.getElementById('channelField');
+const channelSelect = document.getElementById('channelSelect');
 const controls = document.getElementById('controls');
 const homeButton = document.getElementById('homeButton');
 const prevButton = document.getElementById('prevButton');
@@ -49,6 +61,7 @@ let rows = 1;
 let cellWidth = 1;
 let cellHeight = 1;
 let renderToken = 0;
+let renderedPixels = 0;
 
 let seedManifestPromise = null;
 const seedChunkMemory = new Map();
@@ -104,6 +117,144 @@ function parseNonNegativeBigInt(value) {
   const s = String(value).trim();
   if (!/^\d+$/.test(s)) throw new Error('Start index must be a non-negative integer.');
   return BigInt(s);
+}
+
+function getMode() {
+  return DISPLAY_MODES[modeSelect.value] || DISPLAY_MODES.palette;
+}
+
+function updateModeControls() {
+  const enabled = getMode().usesChannel;
+  channelSelect.disabled = !enabled;
+  channelField.classList.toggle('disabled', !enabled);
+}
+
+function scaleToByte(value, maxValue) {
+  if (maxValue <= 0) return 0;
+  return Math.max(0, Math.min(255, Math.round((value / maxValue) * 255)));
+}
+
+function intensityColor(value, maxValue) {
+  const byte = scaleToByte(value, maxValue);
+  if (channelSelect.value === 'red') return { byte, color: `rgb(${byte}, 0, 0)` };
+  if (channelSelect.value === 'green') return { byte, color: `rgb(0, ${byte}, 0)` };
+  return { byte, color: `rgb(0, 0, ${byte})` };
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+function getPixelDescriptor(pixelIndex) {
+  const modeName = modeSelect.value;
+  const mode = getMode();
+  const dpp = mode.digitsPerPixel;
+  const sourceOffset = pixelIndex * dpp;
+
+  if (modeName === 'difference') {
+    const hasPrefix = startIndex > 0n;
+    const currentOffset = pixelIndex + (hasPrefix ? 1 : 0);
+    if (currentOffset < 0 || currentOffset >= digits.length) return null;
+
+    const current = digits.charCodeAt(currentOffset) - 48;
+    let previous = null;
+    let difference = 0;
+
+    if (!(startIndex === 0n && pixelIndex === 0)) {
+      const previousOffset = currentOffset - 1;
+      if (previousOffset < 0 || previousOffset >= digits.length) return null;
+      previous = digits.charCodeAt(previousOffset) - 48;
+      difference = Math.abs(current - previous);
+    }
+
+    const intensity = intensityColor(difference, 9);
+    const source = startIndex + BigInt(pixelIndex);
+    const sourceText = previous === null ? String(current) : `${previous}→${current}`;
+    return {
+      color: intensity.color,
+      cellText: String(difference),
+      sourceStart: source,
+      sourceEnd: source,
+      detail: `${sourceText} · Δ ${difference} · ${channelSelect.value} ${intensity.byte}/255`
+    };
+  }
+
+  if (sourceOffset + dpp > digits.length) return null;
+
+  const chunk = digits.slice(sourceOffset, sourceOffset + dpp);
+  const sourceStart = startIndex + BigInt(pixelIndex) * BigInt(dpp);
+  const sourceEnd = sourceStart + BigInt(dpp - 1);
+
+  if (modeName === 'palette') {
+    const digit = chunk.charCodeAt(0) - 48;
+    return {
+      color: palette[digit] || '#000',
+      cellText: chunk,
+      sourceStart,
+      sourceEnd,
+      detail: `digit ${chunk}`
+    };
+  }
+
+  if (modeName === 'intensity1') {
+    const value = Number(chunk);
+    const intensity = intensityColor(value, 9);
+    return {
+      color: intensity.color,
+      cellText: chunk,
+      sourceStart,
+      sourceEnd,
+      detail: `digit ${chunk} · ${channelSelect.value} ${intensity.byte}/255`
+    };
+  }
+
+  if (modeName === 'intensity2') {
+    const value = Number(chunk);
+    const intensity = intensityColor(value, 99);
+    return {
+      color: intensity.color,
+      cellText: chunk,
+      sourceStart,
+      sourceEnd,
+      detail: `digits ${chunk} · value ${value} · ${channelSelect.value} ${intensity.byte}/255`
+    };
+  }
+
+  if (modeName === 'rgb3') {
+    const r = scaleToByte(Number(chunk[0]), 9);
+    const g = scaleToByte(Number(chunk[1]), 9);
+    const b = scaleToByte(Number(chunk[2]), 9);
+    return {
+      color: `rgb(${r}, ${g}, ${b})`,
+      cellText: chunk,
+      sourceStart,
+      sourceEnd,
+      detail: `digits ${chunk} · RGB ${r},${g},${b} · ${rgbToHex(r, g, b)}`
+    };
+  }
+
+  if (modeName === 'rgb6') {
+    const r = scaleToByte(Number(chunk.slice(0, 2)), 99);
+    const g = scaleToByte(Number(chunk.slice(2, 4)), 99);
+    const b = scaleToByte(Number(chunk.slice(4, 6)), 99);
+    return {
+      color: `rgb(${r}, ${g}, ${b})`,
+      cellText: chunk,
+      sourceStart,
+      sourceEnd,
+      detail: `digits ${chunk} · RGB ${r},${g},${b} · ${rgbToHex(r, g, b)}`
+    };
+  }
+
+  return null;
+}
+
+function countRenderablePixels(maxPixels) {
+  if (modeSelect.value === 'difference') {
+    const available = startIndex > 0n ? Math.max(0, digits.length - 1) : digits.length;
+    return Math.min(maxPixels, available);
+  }
+  return Math.min(maxPixels, Math.floor(digits.length / getMode().digitsPerPixel));
 }
 
 function getGeometry() {
@@ -229,12 +380,14 @@ function draw() {
   ctx.fillStyle = '#05070a';
   ctx.fillRect(0, 0, cssWidth, cssHeight);
 
-  for (let i = 0; i < digits.length; i++) {
+  const pixelCount = rowWidth * rows;
+  for (let i = 0; i < pixelCount; i++) {
+    const descriptor = getPixelDescriptor(i);
+    if (!descriptor) break;
+
     const col = i % rowWidth;
     const row = Math.floor(i / rowWidth);
-    if (row >= rows) break;
-    const digit = digits.charCodeAt(i) - 48;
-    ctx.fillStyle = palette[digit] || '#000';
+    ctx.fillStyle = descriptor.color;
     const x0 = Math.floor(col * cellWidth);
     const y0 = Math.floor(row * cellHeight);
     const x1 = Math.ceil((col + 1) * cellWidth);
@@ -258,29 +411,51 @@ async function render() {
   startIndex = start;
 
   const { cssWidth, cssHeight, count } = getGeometry();
+  const mode = getMode();
+  const visibleSourceDigitsRequested = count * mode.digitsPerPixel;
+  let fetchStart = start;
+  let fetchCount = visibleSourceDigitsRequested;
+
+  if (modeSelect.value === 'difference' && start > 0n) {
+    fetchStart = start - 1n;
+    fetchCount += 1;
+  }
+
   resizeCanvas(cssWidth, cssHeight);
   emptyState.hidden = false;
   emptyState.textContent = 'Loading digits of π…';
-  statusEl.textContent = `Loading ${count.toLocaleString()} digits…`;
+  statusEl.textContent =
+    `Loading ${count.toLocaleString()} pixels from ` +
+    `${visibleSourceDigitsRequested.toLocaleString()} π digits…`;
 
   const token = ++renderToken;
   try {
-    const result = await fetchDigits(start, count, token);
+    const result = await fetchDigits(fetchStart, fetchCount, token);
     if (token !== renderToken) return;
 
+    if (start >= BigInt(result.totalDigits)) {
+      throw new Error(
+        `Start index is outside the local corpus. Available indices: 0–${(BigInt(result.totalDigits) - 1n).toString()}.`
+      );
+    }
+
     digits = result.content;
+    renderedPixels = countRenderablePixels(count);
     draw();
     emptyState.hidden = true;
 
-    const end = digits.length ? start + BigInt(digits.length - 1) : start;
+    const visibleSourceDigits = renderedPixels * mode.digitsPerPixel;
+    const end = visibleSourceDigits ? start + BigInt(visibleSourceDigits - 1) : start;
     statusEl.textContent =
-      `${rowWidth.toLocaleString()} digits/row × ${rows.toLocaleString()} rows · ` +
-      `${digits.length.toLocaleString()} digits · ${describeSources(result)}`;
+      `${mode.label} · ${rowWidth.toLocaleString()} pixels/row × ${rows.toLocaleString()} rows · ` +
+      `${renderedPixels.toLocaleString()} pixels · ${visibleSourceDigits.toLocaleString()} π digits · ` +
+      describeSources(result);
     rangeEl.textContent = `indices ${start.toString()}–${end.toString()}`;
     syncUrl();
   } catch (err) {
     if (err.name === 'AbortError') return;
     digits = '';
+    renderedPixels = 0;
     draw();
     emptyState.hidden = false;
     emptyState.textContent = 'Unable to load local π digits.';
@@ -292,6 +467,8 @@ function syncUrl() {
   const url = new URL(location.href);
   url.searchParams.set('start', startIndex.toString());
   url.searchParams.set('width', String(rowWidth));
+  url.searchParams.set('mode', modeSelect.value);
+  url.searchParams.set('channel', channelSelect.value);
   history.replaceState(null, '', url);
 }
 
@@ -301,6 +478,12 @@ function loadUrlState() {
   if (params.has('width')) {
     const width = Number(params.get('width'));
     if (Number.isInteger(width) && width >= 1 && width <= 2000) widthInput.value = width;
+  }
+  if (params.has('mode') && DISPLAY_MODES[params.get('mode')]) {
+    modeSelect.value = params.get('mode');
+  }
+  if (params.has('channel') && ['red', 'green', 'blue'].includes(params.get('channel'))) {
+    channelSelect.value = params.get('channel');
   }
 }
 
@@ -343,7 +526,8 @@ function moveByDigits(delta) {
 
 function moveRows(direction, rowCount) {
   const count = Math.max(1, Math.floor(rowCount));
-  moveByDigits(BigInt(direction) * BigInt(rowWidth) * BigInt(count));
+  const dpp = BigInt(getMode().digitsPerPixel);
+  moveByDigits(BigInt(direction) * BigInt(rowWidth) * BigInt(count) * dpp);
 }
 
 function moveHalfPage(direction) {
@@ -364,7 +548,7 @@ function pointerCell(event) {
   const col = Math.floor(x / cellWidth);
   const row = Math.floor(y / cellHeight);
   const local = row * rowWidth + col;
-  if (col < 0 || col >= rowWidth || row < 0 || row >= rows || local >= digits.length) return null;
+  if (col < 0 || col >= rowWidth || row < 0 || row >= rows || local >= renderedPixels) return null;
   return { col, row, local };
 }
 
@@ -392,27 +576,35 @@ function drawMagnifier(center) {
       const px = ox + (dx + halfCols) * box;
       const py = oy + (dy + halfRows) * box;
 
-      if (col < 0 || col >= rowWidth || row < 0 || row >= rows || i < 0 || i >= digits.length) {
+      if (col < 0 || col >= rowWidth || row < 0 || row >= rows || i < 0 || i >= renderedPixels) {
         mctx.fillStyle = '#111722';
         mctx.fillRect(px, py, box, box);
         continue;
       }
 
-      const digit = digits.charCodeAt(i) - 48;
-      mctx.fillStyle = palette[digit];
+      const descriptor = getPixelDescriptor(i);
+      if (!descriptor) {
+        mctx.fillStyle = '#111722';
+        mctx.fillRect(px, py, box, box);
+        continue;
+      }
+
+      mctx.fillStyle = descriptor.color;
       mctx.fillRect(px, py, box, box);
 
       mctx.strokeStyle = dx === 0 && dy === 0 ? '#ffffff' : 'rgba(255,255,255,.16)';
       mctx.lineWidth = dx === 0 && dy === 0 ? 2 : 1;
       mctx.strokeRect(px + .5, py + .5, box - 1, box - 1);
 
-      mctx.font = 'bold 15px ui-monospace, SFMono-Regular, Menlo, monospace';
+      const textSize = descriptor.cellText.length <= 2 ? 14 :
+        descriptor.cellText.length <= 3 ? 10 : 7;
+      mctx.font = `bold ${textSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       mctx.textAlign = 'center';
       mctx.textBaseline = 'middle';
       mctx.fillStyle = '#ffffff';
       mctx.shadowColor = 'rgba(0,0,0,.9)';
       mctx.shadowBlur = 4;
-      mctx.fillText(String(digit), px + box / 2, py + box / 2);
+      mctx.fillText(descriptor.cellText, px + box / 2, py + box / 2);
       mctx.shadowBlur = 0;
     }
   }
@@ -439,10 +631,16 @@ canvas.addEventListener('mousemove', event => {
     return;
   }
 
-  const digit = digits[cell.local];
-  const absolute = startIndex + BigInt(cell.local);
-  magnifierIndex.textContent = `index ${absolute.toString()}`;
-  magnifierDigit.textContent = `digit ${digit}`;
+  const descriptor = getPixelDescriptor(cell.local);
+  if (!descriptor) {
+    magnifier.hidden = true;
+    return;
+  }
+
+  magnifierIndex.textContent = descriptor.sourceStart === descriptor.sourceEnd
+    ? `index ${descriptor.sourceStart.toString()}`
+    : `indices ${descriptor.sourceStart.toString()}–${descriptor.sourceEnd.toString()}`;
+  magnifierDigit.textContent = descriptor.detail;
   drawMagnifier(cell);
   magnifier.hidden = false;
   positionMagnifier(event);
@@ -480,6 +678,13 @@ widthInput.addEventListener('keydown', event => {
   }
 });
 
+modeSelect.addEventListener('change', () => {
+  updateModeControls();
+  render();
+});
+
+channelSelect.addEventListener('change', render);
+
 homeButton.addEventListener('click', () => {
   startInput.value = '0';
   render();
@@ -510,4 +715,5 @@ new ResizeObserver(() => {
 loadPalette();
 buildPaletteUI();
 loadUrlState();
+updateModeControls();
 render();

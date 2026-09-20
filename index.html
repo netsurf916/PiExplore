@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0d12">
   <title>Pi Explore</title>
-  <link rel="stylesheet" href="styles.css?v=local50m-r7">
+  <link rel="stylesheet" href="styles.css?v=local50m-r8">
 </head>
 <body>
   <header class="toolbar">
@@ -34,6 +34,25 @@
           <button type="button" id="widthIncrement" class="stepper-button" aria-label="Increase width by 1" title="Width +1">+</button>
         </div>
       </div>
+      <label class="mode-field">
+        <span>Mode</span>
+        <select id="modeSelect" name="mode" aria-label="Rendering mode">
+          <option value="palette">Digit palette</option>
+          <option value="intensity1">1 digit → intensity</option>
+          <option value="intensity2">2 digits → intensity</option>
+          <option value="rgb3">3 digits → RGB</option>
+          <option value="rgb6">6 digits → RRGGBB</option>
+          <option value="difference">Difference</option>
+        </select>
+      </label>
+      <label id="channelField" class="channel-field">
+        <span>Channel</span>
+        <select id="channelSelect" name="channel" aria-label="Intensity color channel">
+          <option value="red">Red</option>
+          <option value="green">Green</option>
+          <option value="blue" selected>Blue</option>
+        </select>
+      </label>
       <button type="submit" class="primary">Render</button>
       <div class="nav-stepper" role="group" aria-label="Move through pi">
         <button type="button" id="homeButton" class="nav-home" aria-label="Go to start of pi" title="Go to index 0">
@@ -77,10 +96,10 @@
   <footer class="statusbar">
     <div id="status">Ready.</div>
     <div id="range"></div>
-    <div class="build" title="Deployed UI build">local50m-r7</div>
+    <div class="build" title="Deployed UI build">local50m-r8</div>
     <a href="https://github.com/netsurf916/PiExplore" target="_blank" rel="noreferrer">GitHub</a>
   </footer>
 
-  <script src="app.js?v=local50m-r7"></script>
+  <script src="app.js?v=local50m-r8"></script>
 </body>
 </html>

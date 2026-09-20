@@ -6,11 +6,13 @@ A static GitHub Pages explorer for visualizing the decimal digits of π as color
 
 - Index 0 is the leading `3` in π.
 - Adjustable starting index and row width.
-- Ten editable colors, one for each decimal digit.
+- Multiple rendering modes: digit palette, 1-digit intensity, 2-digit intensity, 3-digit RGB, 6-digit RRGGBB, and absolute digit difference.
+- Red, green, or blue channel selection for the intensity and difference modes.
+- Ten editable colors for digit-palette mode.
 - Canvas rendering sized to the browser viewport.
-- Mouse-over magnifier showing nearby colored cells, digits, and absolute π indices.
-- Previous/next navigation by one visible page of digits.
-- URL parameters preserve the current `start` and `width`.
+- Mouse-over magnifier showing nearby colored cells, source digits, interpreted values/colors, and absolute π indices.
+- Granular navigation by one row, ten rows, half a page, or a whole page, plus a jump back to index 0.
+- URL parameters preserve the current `start`, `width`, `mode`, and `channel`.
 - Palette is saved in browser local storage.
 - All displayed π digits come from this repository; the browser does not call a third-party digit service.
 

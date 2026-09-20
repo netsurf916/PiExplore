@@ -30,7 +30,7 @@ body {
   min-height: 100vh;
 }
 
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 
 button {
   border: 1px solid var(--border);
@@ -107,13 +107,25 @@ h1 {
   letter-spacing: .08em;
 }
 
-input {
+input,
+select {
   width: 10rem;
   padding: .52rem .6rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
+}
+
+.mode-field select { width: 11.5rem; }
+.channel-field select { width: 7rem; }
+
+.controls label.disabled {
+  opacity: .45;
+}
+
+select:disabled {
+  cursor: not-allowed;
 }
 
 .stepper {
@@ -288,7 +300,11 @@ main {
   font-size: .84rem;
 }
 
-.magnifier-heading span { color: var(--muted); }
+.magnifier-heading span {
+  color: var(--muted);
+  text-align: right;
+  max-width: 235px;
+}
 
 #magnifierCanvas {
   display: block;
@@ -335,8 +351,11 @@ main {
 @media (max-width: 640px) {
   .controls label,
   .control-field { min-width: 7rem; }
-  input { width: 8rem; }
+  input,
+  select { width: 8rem; }
   .stepper input { width: 7rem; }
+  .mode-field select { width: 10.5rem; }
+  .channel-field select { width: 7rem; }
   .nav-stepper {
     flex-wrap: wrap;
     gap: .35rem;
