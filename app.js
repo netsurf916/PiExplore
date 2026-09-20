@@ -1,8 +1,13 @@
 const SEED_MANIFEST_URL = 'data/manifest.json';
 
-const DEFAULT_PALETTE = [
+const LEGACY_DEFAULT_PALETTE = [
   '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
   '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+];
+
+const DEFAULT_PALETTE = [
+  '#071b36', '#0b2c5b', '#103e7f', '#1450a3', '#1962c8',
+  '#2575e4', '#498ce9', '#6ea3ed', '#92baf2', '#b6d1f6'
 ];
 
 const canvas = document.getElementById('piCanvas');
@@ -15,6 +20,7 @@ const widthInput = document.getElementById('widthInput');
 const widthDecrement = document.getElementById('widthDecrement');
 const widthIncrement = document.getElementById('widthIncrement');
 const controls = document.getElementById('controls');
+const homeButton = document.getElementById('homeButton');
 const prevButton = document.getElementById('prevButton');
 const prevHalfButton = document.getElementById('prevHalfButton');
 const prevTenRowsButton = document.getElementById('prevTenRowsButton');
@@ -50,7 +56,17 @@ const seedChunkMemory = new Map();
 function loadPalette() {
   try {
     const saved = JSON.parse(localStorage.getItem('piExplorePalette'));
-    if (Array.isArray(saved) && saved.length === 10) palette = saved;
+    if (!Array.isArray(saved) || saved.length !== 10) return;
+
+    const isLegacyDefault = saved.every(
+      (color, index) => String(color).toLowerCase() === LEGACY_DEFAULT_PALETTE[index]
+    );
+
+    if (isLegacyDefault) {
+      savePalette();
+    } else {
+      palette = saved;
+    }
   } catch {}
 }
 
@@ -462,6 +478,11 @@ widthInput.addEventListener('keydown', event => {
     event.preventDefault();
     nudgeWidth(1);
   }
+});
+
+homeButton.addEventListener('click', () => {
+  startInput.value = '0';
+  render();
 });
 
 prevButton.addEventListener('click', () => movePage(-1));

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0d12">
   <title>Pi Explore</title>
-  <link rel="stylesheet" href="styles.css?v=local50m-r6">
+  <link rel="stylesheet" href="styles.css?v=local50m-r7">
 </head>
 <body>
   <header class="toolbar">
@@ -36,6 +36,11 @@
       </div>
       <button type="submit" class="primary">Render</button>
       <div class="nav-stepper" role="group" aria-label="Move through pi">
+        <button type="button" id="homeButton" class="nav-home" aria-label="Go to start of pi" title="Go to index 0">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M3 11.5 12 4l9 7.5M5.5 10v9h5v-5h3v5h5v-9"></path>
+          </svg>
+        </button>
         <button type="button" id="prevButton" aria-label="Previous page" title="Previous whole page">&lt;&lt;&lt;&lt;</button>
         <button type="button" id="prevHalfButton" aria-label="Previous half page" title="Previous half page">&lt;&lt;&lt;</button>
         <button type="button" id="prevTenRowsButton" aria-label="Previous 10 rows" title="Previous 10 rows">&lt;&lt;</button>
@@ -72,10 +77,10 @@
   <footer class="statusbar">
     <div id="status">Ready.</div>
     <div id="range"></div>
-    <div class="build" title="Deployed UI build">local50m-r6</div>
+    <div class="build" title="Deployed UI build">local50m-r7</div>
     <a href="https://github.com/netsurf916/PiExplore" target="_blank" rel="noreferrer">GitHub</a>
   </footer>
 
-  <script src="app.js?v=local50m-r6"></script>
+  <script src="app.js?v=local50m-r7"></script>
 </body>
 </html>

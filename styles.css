@@ -175,6 +175,24 @@ input {
   border-radius: 8px 0 0 8px;
 }
 
+.nav-stepper .nav-home {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  padding-left: .65rem;
+  padding-right: .65rem;
+}
+
+.nav-stepper .nav-home svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .nav-stepper button:last-child {
   border-radius: 0 8px 8px 0;
 }
