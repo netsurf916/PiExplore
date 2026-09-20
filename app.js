@@ -1,4 +1,5 @@
-const SEED_MANIFEST_URL = 'data/manifest.json';
+const EXPECTED_CORPUS_DIGITS = 50000000;
+const SEED_MANIFEST_URL = 'data/manifest.json?v=50m-v3';
 
 const LEGACY_DEFAULT_PALETTE = [
   '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
@@ -280,7 +281,7 @@ function resizeCanvas(cssWidth, cssHeight) {
 async function loadSeedManifest() {
   if (!seedManifestPromise) {
     seedManifestPromise = (async () => {
-      const response = await fetch(SEED_MANIFEST_URL, { cache: 'force-cache' });
+      const response = await fetch(SEED_MANIFEST_URL, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Local π manifest returned HTTP ${response.status}`);
       }
@@ -290,8 +291,19 @@ async function loadSeedManifest() {
           !Number.isInteger(manifest.chunkSize) || !Array.isArray(manifest.chunks)) {
         throw new Error('Local π manifest is invalid.');
       }
+
+      if (manifest.totalDigits !== EXPECTED_CORPUS_DIGITS) {
+        throw new Error(
+          `Local π manifest reports ${manifest.totalDigits.toLocaleString()} digits; ` +
+          `this build expects ${EXPECTED_CORPUS_DIGITS.toLocaleString()}. Refresh to load current metadata.`
+        );
+      }
+
       return manifest;
-    })();
+    })().catch(err => {
+      seedManifestPromise = null;
+      throw err;
+    });
   }
   return seedManifestPromise;
 }

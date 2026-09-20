@@ -40,7 +40,7 @@ This means ordinary exploration makes requests only to the GitHub Pages site its
 
 ## Caching
 
-The browser requests only the 1M-digit static chunks needed for the current view. Loaded chunks are retained in memory for the current session, and requests use normal browser/GitHub Pages HTTP caching across reloads.
+The browser requests only the 1M-digit static chunks needed for the current view. Loaded chunks are retained in memory for the current session, and chunk requests use normal browser/GitHub Pages HTTP caching across reloads. The small corpus manifest is deliberately fetched without browser caching so an older deployment's corpus size cannot remain stuck in the browser cache.
 
 ## GitHub Pages
 
